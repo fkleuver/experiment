@@ -10,6 +10,7 @@ import {
 import { BindingEngine } from 'aurelia-binding';
 import { BrowserHistory, DefaultLinkHandler } from 'aurelia-history-browser';
 import { Container } from 'aurelia-dependency-injection';
+import { Container as NewContainer } from '../../../ioc/runtime-slim/container';
 import { EventAggregator } from 'aurelia-event-aggregator';
 import { HttpClient } from 'aurelia-fetch-client';
 import { LookupFunctions, Parser, ObserverLocator, EventManager } from 'aurelia-binding';
@@ -316,9 +317,9 @@ export function registerTimes(n: number, container: Container) {
   return end - start;
 }
 
-export function resolveTimes(n: number, container: Container | DefaultInjector, warm: boolean = false) {
+export function resolveTimes(n: number, container: Container | DefaultInjector | NewContainer, warm: boolean = false) {
   let i = 0;
-  const method = container instanceof Container ? 'get' : 'getInstance';
+  const method = container instanceof DefaultInjector ? 'getInstance' : 'get';
   if (warm) {
     container[method](`key`);
     const start = PLATFORM.performance.now();
