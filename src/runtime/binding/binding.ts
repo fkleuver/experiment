@@ -76,7 +76,7 @@ export class Binding extends ConnectableBinding implements IBinding {
     if (context === targetContext) {
       flags = flags || this._updateSourceFlags;
       if (newValue !== this.sourceExpression.evaluate(this.$scope, this.locator, flags)) {
-        this.updateSource(flags);
+        this.updateSource(newValue, flags);
       }
 
       return;
