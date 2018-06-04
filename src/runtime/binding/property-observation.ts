@@ -3,6 +3,7 @@ import { ITaskQueue } from '../task-queue';
 import { ICallable, IIndexable } from '../interfaces';
 import { Reporter } from '../reporter';
 import { IAccessor, ISubscribable } from './observation';
+import { BindingFlags, BindingOrigin, BindingOperation } from './binding-flags';
 
 export const propertyAccessor = {
   getValue: (obj: any, propertyName: string) => obj[propertyName],
@@ -30,6 +31,8 @@ export class PrimitiveObserver implements IAccessor, ISubscribable {
 }
 
 export class SetterObserver extends SubscriberCollection implements IAccessor, ISubscribable, ICallable {
+  private _callFlags: BindingFlags;
+
   private queued = false;
   private observing = false;
   private currentValue: any;
@@ -37,6 +40,8 @@ export class SetterObserver extends SubscriberCollection implements IAccessor, I
 
   constructor(private taskQueue: ITaskQueue, private obj: any, private propertyName: string) {
     super();
+
+    this._callFlags = BindingOrigin.observer | BindingOperation.change | this._id;
   }
 
   getValue() {
@@ -65,13 +70,13 @@ export class SetterObserver extends SubscriberCollection implements IAccessor, I
     }
   }
 
-  call() {
+  call(flags?: BindingFlags) {
     let oldValue = this.oldValue;
     let newValue = this.currentValue;
 
     this.queued = false;
 
-    this.callSubscribers(newValue, oldValue);
+    this.callSubscribers(newValue, oldValue, flags || this._callFlags);
   }
 
   subscribe(context: string, callable: ICallable) {
@@ -104,11 +109,15 @@ export class SetterObserver extends SubscriberCollection implements IAccessor, I
 }
 
 export class Observer<T> extends SubscriberCollection implements IAccessor, ISubscribable, ICallable {
+  private _callFlags: BindingFlags;
+
   private queued = false;
   private oldValue: T;
 
   constructor(private taskQueue: ITaskQueue, private currentValue: T, private selfCallback?: (newValue: T, oldValue: T) => void | T) {
     super();
+
+    this._callFlags = BindingOrigin.observer | BindingOperation.change | this._id;
   }
 
   getValue(): T {
@@ -137,11 +146,11 @@ export class Observer<T> extends SubscriberCollection implements IAccessor, ISub
     }
   }
 
-  call() {
+  call(flags?: BindingFlags) {
     let oldValue = this.oldValue;
     let newValue = this.currentValue;
     this.queued = false;
-    this.callSubscribers(newValue, oldValue);
+    this.callSubscribers(newValue, oldValue, flags || this._callFlags);
   }
 
   subscribe(context: string, callable: ICallable) {

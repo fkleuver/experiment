@@ -4,10 +4,13 @@ import { SubscriberCollection } from './subscriber-collection';
 import { ICallable, IIndexable } from '../interfaces';
 import { ITaskQueue } from '../task-queue';
 import { ISubscribable, IAccessor, IBindingCollectionObserver } from './observation';
+import { BindingOrigin, BindingDirection, BindingOperation, nextBindingId, BindingFlags } from './binding-flags';
 
 type Collection = any[] | Map<any, any> | Set<any>;
 
 export class ModifyCollectionObserver extends SubscriberCollection implements IBindingCollectionObserver {
+  private _callFlags: BindingFlags;
+  
   private queued = false;
   private changeRecords: any[] = null;
   private oldCollection: Collection = null;
@@ -17,6 +20,8 @@ export class ModifyCollectionObserver extends SubscriberCollection implements IB
   constructor(private taskQueue: ITaskQueue, private collection: Collection) {
     super();
     this.lengthPropertyName = (collection instanceof Map) || (collection instanceof Set) ? 'size' : 'length';
+
+    this._callFlags = BindingOrigin.observer | BindingOperation.change | this._id;
   }
 
   subscribe(context: string, callable: ICallable) {
@@ -77,7 +82,7 @@ export class ModifyCollectionObserver extends SubscriberCollection implements IB
     return this.lengthObserver || (this.lengthObserver = new CollectionLengthObserver(this.collection));
   }
 
-  call() {
+  call(flags?: BindingFlags) {
     let changeRecords = this.changeRecords;
     let oldCollection = this.oldCollection;
     let records;
@@ -103,16 +108,18 @@ export class ModifyCollectionObserver extends SubscriberCollection implements IB
         }
       }
 
-      this.callSubscribers(records);
+      this.callSubscribers(records, undefined, flags || this._callFlags);
     }
 
     if (this.lengthObserver) {
-      this.lengthObserver.call((this.collection as any)[this.lengthPropertyName]);
+      this.lengthObserver.call((this.collection as any)[this.lengthPropertyName], flags || this._callFlags);
     }
   }
 }
 
 export class CollectionLengthObserver extends SubscriberCollection implements IAccessor, ISubscribable, ICallable {
+  private _callFlags: BindingFlags;
+  
   private collection: Collection;
   private lengthPropertyName: string;
   private currentValue: number;
@@ -122,6 +129,8 @@ export class CollectionLengthObserver extends SubscriberCollection implements IA
     this.collection = collection;
     this.lengthPropertyName = collection instanceof Map || collection instanceof Set ? 'size' : 'length';
     this.currentValue = (collection as any)[this.lengthPropertyName];
+
+    this._callFlags = BindingOrigin.observer | BindingOperation.change | this._id;
   }
 
   getValue() {
@@ -140,9 +149,9 @@ export class CollectionLengthObserver extends SubscriberCollection implements IA
     this.removeSubscriber(context, callable);
   }
 
-  call(newValue: number) {
+  call(newValue: number, flags?: BindingFlags) {
     let oldValue = this.currentValue;
-    this.callSubscribers(newValue, oldValue);
+    this.callSubscribers(newValue, oldValue, flags || this._callFlags);
     this.currentValue = newValue;
   }
 }

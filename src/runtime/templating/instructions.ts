@@ -1,6 +1,6 @@
 import { DI } from '../di';
 import { DelegationStrategy } from '../binding/event-manager';
-import { BindingMode } from '../binding/binding-mode';
+import { BindingMode } from '../binding/binding-flags';
 import { INode } from '../dom';
 import { Immutable } from '../interfaces';
 

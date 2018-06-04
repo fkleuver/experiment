@@ -5,11 +5,15 @@ import { IEventSubscriber } from './event-manager';
 import { IObserverLocator } from './observer-locator';
 import { IAccessor, ISubscribable } from './observation';
 import { INode } from '../dom';
+import { BindingFlags, BindingOrigin, BindingOperation, BindingDirection, nextBindingId } from './binding-flags';
 
 const checkedArrayContext = 'CheckedObserver:array';
 const checkedValueContext = 'CheckedObserver:value';
 
 export class CheckedObserver extends SubscriberCollection implements IAccessor, ISubscribable, ICallable {
+  private _setValueFlags: BindingFlags;
+  private _handleEventFlags: BindingFlags;
+  
   private value: any;
   private initialSync: boolean;
   private arrayObserver: any;
@@ -23,13 +27,17 @@ export class CheckedObserver extends SubscriberCollection implements IAccessor, 
     private observerLocator: IObserverLocator
   ) {
     super();
+
+    const baseFlags = BindingOrigin.observer | this._id;
+    this._setValueFlags = baseFlags | BindingOperation.change | BindingDirection.fromView;
+    this._handleEventFlags = baseFlags | BindingOperation.change | BindingDirection.toView;
   }
 
   getValue() {
     return this.value;
   }
 
-  setValue(newValue: any) {
+  setValue(newValue: any, flags?: BindingFlags) {
     if (this.initialSync && this.value === newValue) {
       return;
     }
@@ -50,7 +58,7 @@ export class CheckedObserver extends SubscriberCollection implements IAccessor, 
     this.oldValue = this.value;
     this.value = newValue;
     this.synchronizeElement();
-    this.notify();
+    this.notify(flags || this._setValueFlags);
 
     // queue up an initial sync after the bindings have been evaluated.
     if (!this.initialSync) {
@@ -85,7 +93,7 @@ export class CheckedObserver extends SubscriberCollection implements IAccessor, 
       || !isRadio && Array.isArray(value) && value.findIndex(item => !!matcher(item, elementValue)) !== -1;
   }
 
-  synchronizeValue() {
+  synchronizeValue(flags: BindingFlags) {
     let value = this.value;
     let element = this.node;
     let elementValue = element.hasOwnProperty('model') ? element['model'] : element.value;
@@ -114,10 +122,10 @@ export class CheckedObserver extends SubscriberCollection implements IAccessor, 
 
     this.oldValue = this.value;
     this.value = value;
-    this.notify();
+    this.notify(flags);
   }
 
-  notify() {
+  notify(flags: BindingFlags) {
     let oldValue = this.oldValue;
     let newValue = this.value;
 
@@ -125,11 +133,11 @@ export class CheckedObserver extends SubscriberCollection implements IAccessor, 
       return;
     }
 
-    this.callSubscribers(newValue, oldValue);
+    this.callSubscribers(newValue, oldValue, flags);
   }
 
   handleEvent() {
-    this.synchronizeValue();
+    this.synchronizeValue(this._handleEventFlags);
   }
 
   subscribe(context: string, callable: ICallable) {

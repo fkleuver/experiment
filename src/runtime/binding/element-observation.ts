@@ -3,6 +3,7 @@ import { ICallable } from '../interfaces';
 import { IAccessor, ISubscribable } from './observation';
 import { IEventSubscriber } from './event-manager';
 import { INode, DOM } from '../dom';
+import { BindingFlags, BindingOrigin, BindingOperation, BindingDirection } from './binding-flags';
 
 export class XLinkAttributeObserver implements IAccessor {
   // xlink namespaced attributes require getAttributeNS/setAttributeNS
@@ -131,6 +132,9 @@ export class StyleObserver implements IAccessor {
 }
 
 export class ValueAttributeObserver extends SubscriberCollection implements IAccessor, ISubscribable {
+  private _setValueFlags: BindingFlags;
+  private _handleEventFlags: BindingFlags;
+
   private oldValue: any;
 
   constructor(
@@ -144,31 +148,35 @@ export class ValueAttributeObserver extends SubscriberCollection implements IAcc
       // input.files cannot be assigned.
       this.setValue = () => { };
     }
+
+    const baseFlags = BindingOrigin.observer | this._id;
+    this._setValueFlags = baseFlags | BindingOperation.change | BindingDirection.fromView;
+    this._handleEventFlags = baseFlags | BindingOperation.change | BindingDirection.toView;
   }
 
   getValue(): any {
     return (this.node as any)[this.propertyName];
   }
 
-  setValue(newValue: any) {
+  setValue(newValue: any, flags?: BindingFlags) {
     newValue = newValue === undefined || newValue === null ? '' : newValue;
     if ((this.node as any)[this.propertyName] !== newValue) {
       (this.node as any)[this.propertyName] = newValue;
-      this.notify();
+      this.notify(flags || this._setValueFlags);
     }
   }
 
-  notify() {
+  notify(flags: BindingFlags) {
     let oldValue = this.oldValue;
     let newValue = this.getValue();
 
-    this.callSubscribers(newValue, oldValue);
+    this.callSubscribers(newValue, oldValue, flags);
 
     this.oldValue = newValue;
   }
 
   handleEvent() {
-    this.notify();
+    this.notify(this._handleEventFlags);
   }
 
   subscribe(context: string, callable: ICallable) {

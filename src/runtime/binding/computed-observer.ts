@@ -5,6 +5,7 @@ import { IAccessor, ISubscribable } from "./observation";
 import { ICallable } from "../interfaces";
 import { ITaskQueue } from "../task-queue";
 import { Reporter } from "../reporter";
+import { nextBindingId, BindingFlags, BindingOrigin, BindingOperation } from "./binding-flags";
 
 export interface IComputedOverrides {
   // Indicates that a getter doesn't need to re-calculate its dependencies after the first observation.
@@ -49,6 +50,8 @@ export function createComputedObserver(observerLocator: IObserverLocator, dirtyC
 
 // Used when the getter is dependent solely on changes that happen within the setter.
 export class CustomSetterObserver extends SubscriberCollection implements IAccessor, ISubscribable, ICallable {
+  private _callFlags: BindingFlags;
+
   private queued = false;
   private observing = false;
   private currentValue: any;
@@ -56,6 +59,8 @@ export class CustomSetterObserver extends SubscriberCollection implements IAcces
 
   constructor(private instance: any, private propertyName: string, private descriptor: PropertyDescriptor, private taskQueue: ITaskQueue) {
     super();
+
+    this._callFlags = BindingOrigin.observer | BindingOperation.change | this._id;
   }
 
   getValue() {
@@ -66,12 +71,12 @@ export class CustomSetterObserver extends SubscriberCollection implements IAcces
     this.instance[this.propertyName] = newValue;
   }
 
-  call() {
+  call(flags?: BindingFlags) {
     const oldValue = this.oldValue;
     const newValue = this.currentValue;
 
     this.queued = false;
-    this.callSubscribers(newValue, oldValue);
+    this.callSubscribers(newValue, oldValue, flags || this._callFlags);
   }
 
   subscribe(context: string, callable: ICallable) {
@@ -116,6 +121,8 @@ export class CustomSetterObserver extends SubscriberCollection implements IAcces
 // Used when there is no setter, and the getter is dependent on other properties of the object;
 // Used when there is a setter but the value of the getter can change based on properties set outside of the setter.
 class GetterObserver extends SubscriberCollection implements IAccessor, ISubscribable, ICallable {
+  private _callFlags: BindingFlags;
+  
   private controller: GetterController;
   
   constructor(private overrides: IComputedOverrides, private instance: any, private propertyName: string, private descriptor: PropertyDescriptor, private observerLocator: IObserverLocator, private taskQueue: ITaskQueue) {
@@ -129,7 +136,9 @@ class GetterObserver extends SubscriberCollection implements IAccessor, ISubscri
       this, 
       observerLocator, 
       taskQueue
-    );       
+    );
+
+    this._callFlags = BindingOrigin.observer | BindingOperation.change | this._id;
   }
 
   getValue() {
@@ -138,12 +147,12 @@ class GetterObserver extends SubscriberCollection implements IAccessor, ISubscri
 
   setValue(newValue) { }
 
-  call() {
+  call(flags?: BindingFlags) {
     const oldValue = this.controller.value;
     const newValue = this.controller.getValueAndCollectDependencies();
     
     if (oldValue !== newValue) {
-      this.callSubscribers(newValue, oldValue);
+      this.callSubscribers(newValue, oldValue, flags || this._callFlags);
     }
   }
 

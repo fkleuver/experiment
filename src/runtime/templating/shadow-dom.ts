@@ -6,6 +6,7 @@ import { IScope } from '../binding/binding-context';
 import { IAttach, AttachLifecycle, DetachLifecycle } from './lifecycle';
 import { DOM, INode, IView } from '../dom';
 import { IVisual, IVisualFactory } from './visual';
+import { nextBindingId, BindingFlags, BindingOrigin, BindingOperation } from '../binding/binding-flags';
 
 type ProjectionSource = IRenderSlot | IEmulatedShadowSlot;
 
@@ -59,6 +60,7 @@ function passThroughSlotAddFallbackVisual(visual: IVisual) {
 }
 
 abstract class ShadowSlotBase {
+  protected _id = nextBindingId();
   fallbackVisual: IVisual = null;
   $isAttached = false;
   $isBound = false;
@@ -123,7 +125,7 @@ class PassThroughSlot extends ShadowSlotBase implements IEmulatedShadowSlot {
   renderFallback(view: IView, nodes: SlotNode[], projectionSource: ProjectionSource, index = 0) {
     if (this.fallbackVisual === null) {
       this.fallbackVisual = this.fallbackFactory.create();
-      this.fallbackVisual.$bind(this.owner.$scope);
+      this.fallbackVisual.$bind(this.owner.$scope, BindingOrigin.component | BindingOperation.bind | this._id);
       this.currentProjectionSource = projectionSource;
       this.fallbackVisual.parent = this as any;
       this.fallbackVisual.onRender = passThroughSlotAddFallbackVisual;
@@ -181,7 +183,7 @@ class ShadowSlot extends ShadowSlotBase implements IEmulatedShadowSlot {
   renderFallback(view: IView, nodes: SlotNode[], projectionSource: ProjectionSource, index = 0) {
     if (this.fallbackVisual === null) {
       this.fallbackVisual = this.fallbackFactory.create();
-      this.fallbackVisual.$bind(this.owner.$scope);
+      this.fallbackVisual.$bind(this.owner.$scope, BindingOrigin.component | BindingOperation.bind | this._id);
       this.fallbackVisual.parent = this as any;
       this.fallbackVisual.onRender = shadowSlotAddFallbackVisual;
       this.fallbackVisual.$attach(this.encapsulationSource);

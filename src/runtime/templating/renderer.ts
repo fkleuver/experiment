@@ -7,7 +7,7 @@ import { IObserverLocator } from '../binding/observer-locator';
 import { IEventManager } from '../binding/event-manager';
 import { IExpressionParser } from '../binding/expression-parser';
 import { IRenderingEngine } from './rendering-engine';
-import { BindingMode } from '../binding/binding-mode';
+import { BindingMode } from '../binding/binding-flags';
 import { Binding } from '../binding/binding';
 import { Listener } from '../binding/listener';
 import { Call } from '../binding/call';

@@ -10,7 +10,7 @@ import { IScope, sourceContext } from '../../binding/binding-context';
 import { IRepeatStrategy } from './repeat-strategy';
 import { IBindingCollectionObserver } from '../../binding/observation';
 import { Binding } from '../../binding/binding';
-import { BindingMode } from '../../binding/binding-mode';
+import { BindingMode } from '../../binding/binding-flags';
 import { IViewOwner } from '../../templating/view';
 import { ITaskQueue } from '../../task-queue';
 import { BindingFlags } from '../../binding/binding-flags';

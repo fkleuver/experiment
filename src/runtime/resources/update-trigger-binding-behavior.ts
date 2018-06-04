@@ -1,4 +1,4 @@
-import { BindingMode } from '../binding/binding-mode';
+import { BindingMode } from '../binding/binding-flags';
 import { EventSubscriber, IEventSubscriber } from '../binding/event-manager';
 import { IObserverLocator } from '../binding/observer-locator';
 import { Binding } from '../binding/binding';
@@ -38,7 +38,7 @@ export class UpdateTriggerBindingBehavior {
       throw Reporter.error(10);
     }
 
-    binding.targetObserver = targetObserver;
+    binding.targetObserver = <any>targetObserver;
 
     // stash the original element subscribe function.
     targetObserver.originalHandler = binding.targetObserver.handler;

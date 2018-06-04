@@ -19,7 +19,7 @@ export interface IExpression {
   connect(binding: IBinding, scope: IScope, flags: BindingFlags): any;
   assign?(scope: IScope, value: any, locator: IServiceLocator | null, flags: BindingFlags): any;
   bind?(binding: IBinding, scope: IScope, flags: BindingFlags): void;
-  unbind?(binding: IBinding, scope: IScope, flags: BindingFlags): void;
+  unbind?(binding: IBinding, scope: IScope): void;
 }
 
 export class BindingBehavior implements IExpression {
@@ -56,14 +56,14 @@ export class BindingBehavior implements IExpression {
     (behavior as any).bind.apply(behavior, [binding, scope].concat(evalList(scope, this.args, binding.locator, flags)));
   }
 
-  unbind(binding: IBinding, scope: IScope, flags: BindingFlags) {
+  unbind(binding: IBinding, scope: IScope) {
     let behaviorKey = `behavior-${this.name}`;
 
-    (binding as any)[behaviorKey].unbind(binding, scope, flags);
+    (binding as any)[behaviorKey].unbind(binding, scope);
     (binding as any)[behaviorKey] = null;
 
     if ((<any>this.expression).expression && (<any>this.expression).unbind) {
-      (<any>this.expression).unbind(binding, scope, flags);
+      (<any>this.expression).unbind(binding, scope);
     }
   }
 }
@@ -128,7 +128,7 @@ export class ValueConverter implements IExpression {
     }
   }
 
-  unbind(binding: IBinding, scope: IScope, flags: BindingFlags) {
+  unbind(binding: IBinding, scope: IScope) {
     const converter = binding.locator.get(this.name);
     const signals = (converter as any).signals;
     

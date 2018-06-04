@@ -2,6 +2,7 @@ import { IObserverLocator } from './observer-locator';
 import { IBindingTargetObserver, IBindingCollectionObserver } from './observation';
 import { sourceContext } from './binding-context';
 import { ICallable } from '../interfaces';
+import { nextBindingId } from './binding-flags';
 
 const slotNames: string[] = [];
 const versionSlotNames: string[] = [];
@@ -12,6 +13,7 @@ for (let i = 0; i < 100; i++) {
 }
 
 export abstract class ConnectableBinding implements ICallable {
+  protected _id = nextBindingId();
   protected observerSlots: any;
   protected version: number;
 

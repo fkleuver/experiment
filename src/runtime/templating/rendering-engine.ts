@@ -21,6 +21,7 @@ import { ITemplate } from "./template";
 import { IObserverLocator } from "../binding/observer-locator";
 import { IEventManager } from "../binding/event-manager";
 import { IExpressionParser } from "../binding/expression-parser";
+import { nextBindingId, BindingFlags, BindingOrigin, BindingOperation } from "../binding/binding-flags";
 
 export interface IRenderingEngine {
   getElementTemplate(definition: TemplateDefinition, componentType: IElementType): ITemplate;
@@ -216,6 +217,9 @@ class CompiledTemplate implements ITemplate {
 }
 
 abstract class Visual implements IVisual {
+  protected _id = nextBindingId();
+  protected _bindFlags: BindingFlags;
+
   $bindable: IBindScope[] = [];
   $attachable: IAttach[] = [];
   $scope: IScope = null;
@@ -232,6 +236,8 @@ abstract class Visual implements IVisual {
 
   constructor(public factory: VisualFactory, private animator: IAnimator) {
     this.$view = this.createView();
+
+    this._bindFlags = BindingOrigin.component | BindingOperation.bind | this._id;
   }
 
   abstract createView(): IView;
@@ -289,7 +295,7 @@ abstract class Visual implements IVisual {
     const bindable = this.$bindable;
 
     for (let i = 0, ii = bindable.length; i < ii; ++i) {
-      bindable[i].$bind(scope);
+      bindable[i].$bind(scope, this._bindFlags);
     }
 
     this.$isBound = true;

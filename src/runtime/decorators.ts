@@ -1,6 +1,6 @@
 import { Component } from './templating/component';
 import { PLATFORM } from './platform';
-import { BindingMode } from './binding/binding-mode';
+import { BindingMode } from './binding/binding-flags';
 import { Constructable, Injectable } from './interfaces';
 import { ITemplateSource, IBindableInstruction } from './templating/instructions';
 import { IComputedOverrides } from './binding/computed-observer';

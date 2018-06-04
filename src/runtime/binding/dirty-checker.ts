@@ -2,6 +2,7 @@ import { SubscriberCollection } from './subscriber-collection';
 import { DI } from '../di';
 import { ICallable } from '../interfaces';
 import { IAccessor, ISubscribable } from './observation';
+import { nextBindingId, BindingFlags, BindingOrigin, BindingOperation, BindingDirection } from './binding-flags';
 
 export interface IDirtyChecker {
   createProperty(obj: any, propertyName: string): IAccessor & ISubscribable & ICallable;
@@ -56,10 +57,14 @@ class DirtyChecker {
 }
 
 class DirtyCheckProperty extends SubscriberCollection implements IAccessor, ISubscribable, ICallable {
+  private _callFlags: BindingFlags;
+  
   oldValue;
   
   constructor(private dirtyChecker: DirtyChecker, private obj: any, private propertyName: string) {
     super();
+
+    this._callFlags = BindingOrigin.observer | BindingOperation.change | BindingDirection.fromView | this._id;
   }
 
   isDirty(): boolean {
@@ -74,11 +79,11 @@ class DirtyCheckProperty extends SubscriberCollection implements IAccessor, ISub
     this.obj[this.propertyName] = newValue;
   }
 
-  call() {
+  call(flags?: BindingFlags) {
     let oldValue = this.oldValue;
     let newValue = this.getValue();
 
-    this.callSubscribers(newValue, oldValue);
+    this.callSubscribers(newValue, oldValue, flags || this._callFlags);
 
     this.oldValue = newValue;
   }

@@ -1,4 +1,3 @@
-import { BindingMode } from './binding-mode';
 import { ConnectableBinding } from './connectable-binding';
 import { enqueueBindingConnect } from './connect-queue';
 import { IObserverLocator } from './observer-locator';
@@ -8,7 +7,7 @@ import { IBindScope, IBindingTargetObserver, IBindingTargetAccessor } from './ob
 import { IServiceLocator } from '../di';
 import { IScope, sourceContext, targetContext } from './binding-context';
 import { Reporter } from '../reporter';
-import { BindingFlags } from './binding-flags';
+import { BindingFlags, BindingMode, BindingOperation, BindingDirection, BindingOrigin } from './binding-flags';
 
 export interface IBinding extends IBindScope {
   locator: IServiceLocator;
@@ -18,6 +17,11 @@ export interface IBinding extends IBindScope {
 export type IBindingTarget = any; // Node | CSSStyleDeclaration | IObservable;
 
 export class Binding extends ConnectableBinding implements IBinding {
+  private _updateSourceFlags: BindingFlags;
+  private _updateTargetFlags: BindingFlags;
+  private _bindFlags: BindingFlags;
+  private _connectFlags: BindingFlags;
+
   public targetObserver: IBindingTargetObserver | IBindingTargetAccessor;
   private $scope: IScope;
   private $isBound = false;
@@ -30,32 +34,39 @@ export class Binding extends ConnectableBinding implements IBinding {
     observerLocator: IObserverLocator,
     public locator: IServiceLocator) {
     super(observerLocator);
+
+    const baseFlags = BindingOrigin.binding | this.mode | this._id;
+    this._updateSourceFlags = baseFlags | BindingOperation.change | BindingDirection.fromView;
+    this._updateTargetFlags = baseFlags | BindingOperation.change | BindingDirection.toView;
+    this._bindFlags = baseFlags | BindingOperation.bind;
+    this._connectFlags = baseFlags | BindingOperation.connect;
   }
 
-  updateTarget(value: any) {
-    this.targetObserver.setValue(value, this.target, this.targetProperty);
+  updateTarget(value: any, flags?: BindingFlags) {
+    this.targetObserver.setValue(value, this.target, this.targetProperty, flags || this._updateTargetFlags);
   }
 
-  updateSource(value: any) {
-    this.sourceExpression.assign(this.$scope, value, this.locator, BindingFlags.none);
+  updateSource(value: any, flags?: BindingFlags) {
+    this.sourceExpression.assign(this.$scope, value, this.locator, flags || this._updateSourceFlags);
   }
 
-  call(context: string, newValue?: any, oldValue?: any) {
+  call(context: string, newValue?: any, oldValue?: any, flags?: BindingFlags) {
     if (!this.$isBound) {
       return;
     }
 
     if (context === sourceContext) {
+      flags = flags || this._updateTargetFlags;
       oldValue = this.targetObserver.getValue(this.target, this.targetProperty);
-      newValue = this.sourceExpression.evaluate(this.$scope, this.locator, BindingFlags.none);
+      newValue = this.sourceExpression.evaluate(this.$scope, this.locator, flags);
 
       if (newValue !== oldValue) {
-        this.updateTarget(newValue);
+        this.updateTarget(newValue, flags);
       }
 
       if (this.mode !== BindingMode.oneTime) {
         this.version++;
-        this.sourceExpression.connect(this, this.$scope, BindingFlags.none);
+        this.sourceExpression.connect(this, this.$scope, flags);
         this.unobserve(false);
       }
 
@@ -63,8 +74,9 @@ export class Binding extends ConnectableBinding implements IBinding {
     }
 
     if (context === targetContext) {
-      if (newValue !== this.sourceExpression.evaluate(this.$scope, this.locator, BindingFlags.none)) {
-        this.updateSource(newValue);
+      flags = flags || this._updateSourceFlags;
+      if (newValue !== this.sourceExpression.evaluate(this.$scope, this.locator, flags)) {
+        this.updateSource(flags);
       }
 
       return;
@@ -73,7 +85,7 @@ export class Binding extends ConnectableBinding implements IBinding {
     throw Reporter.error(15, context);
   }
 
-  $bind(scope: IScope) {
+  $bind(scope: IScope, flags?: BindingFlags) {
     if (this.$isBound) {
       if (this.$scope === scope) {
         return;
@@ -84,9 +96,10 @@ export class Binding extends ConnectableBinding implements IBinding {
 
     this.$isBound = true;
     this.$scope = scope;
+    flags = flags || this._bindFlags;
 
     if (this.sourceExpression.bind) {
-      this.sourceExpression.bind(this, scope, BindingFlags.none);
+      this.sourceExpression.bind(this, scope, flags);
     }
 
     let mode = this.mode;
@@ -97,12 +110,12 @@ export class Binding extends ConnectableBinding implements IBinding {
     }
 
     if ('bind' in this.targetObserver) {
-      this.targetObserver.bind();
+      this.targetObserver.bind(flags);
     }
 
     if (this.mode !== BindingMode.fromView) {
-      let value = this.sourceExpression.evaluate(scope, this.locator, BindingFlags.none);
-      this.updateTarget(value);
+      let value = this.sourceExpression.evaluate(scope, this.locator, flags);
+      this.updateTarget(value, flags);
     }
 
     if (mode === BindingMode.oneTime) {
@@ -110,7 +123,7 @@ export class Binding extends ConnectableBinding implements IBinding {
     } else if (mode === BindingMode.toView) {
       enqueueBindingConnect(this);
     } else if (mode === BindingMode.twoWay) {
-      this.sourceExpression.connect(this, scope, BindingFlags.none);
+      this.sourceExpression.connect(this, scope, flags);
       (this.targetObserver as IBindingTargetObserver).subscribe(targetContext, this);
     } else if (mode === BindingMode.fromView) {
       (this.targetObserver as IBindingTargetObserver).subscribe(targetContext, this);
@@ -125,7 +138,7 @@ export class Binding extends ConnectableBinding implements IBinding {
     this.$isBound = false;
 
     if (this.sourceExpression.unbind) {
-      this.sourceExpression.unbind(this, this.$scope, BindingFlags.none);
+      this.sourceExpression.unbind(this, this.$scope);
     }
 
     this.$scope = null;
@@ -141,16 +154,17 @@ export class Binding extends ConnectableBinding implements IBinding {
     this.unobserve(true);
   }
 
-  connect(evaluate?: boolean) {
+  connect(evaluate?: boolean, flags?: BindingFlags) {
     if (!this.$isBound) {
       return;
     }
 
+    flags = flags || this._connectFlags;
     if (evaluate) {
-      let value = this.sourceExpression.evaluate(this.$scope, this.locator, BindingFlags.none);
-      this.updateTarget(value);
+      let value = this.sourceExpression.evaluate(this.$scope, this.locator, flags);
+      this.updateTarget(value, flags);
     }
 
-    this.sourceExpression.connect(this, this.$scope, BindingFlags.none);
+    this.sourceExpression.connect(this, this.$scope, flags);
   }
 }

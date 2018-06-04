@@ -4,7 +4,7 @@ import { Observer } from '../binding/property-observation';
 import { ShadowDOMEmulation } from './shadow-dom';
 import { PLATFORM } from '../platform';
 import { IContainer, Registration, DI } from '../di';
-import { BindingMode } from '../binding/binding-mode';
+import { BindingMode } from '../binding/binding-flags';
 import { Constructable, ICallable, Immutable, Writable } from '../interfaces';
 import { IBindScope, IAccessor, ISubscribable } from '../binding/observation';
 import { IScope, BindingContext } from '../binding/binding-context';

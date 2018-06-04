@@ -45,7 +45,7 @@ export class Ref implements IBinding {
     }
 
     if (this.sourceExpression.unbind) {
-      this.sourceExpression.unbind(this, this.$scope, BindingFlags.none);
+      this.sourceExpression.unbind(this, this.$scope);
     }
 
     this.$scope = null;

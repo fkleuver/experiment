@@ -1,10 +1,12 @@
 import { ICallable } from '../interfaces';
+import { BindingFlags, nextBindingId } from './binding-flags';
 
 let arrayPool1: any[] = [];
 let arrayPool2: any[] = [];
 let poolUtilization: any[] = [];
 
 export abstract class SubscriberCollection {
+  protected _id = nextBindingId();
   private _context0: any = null;
   private _callable0: ICallable = null;
   private _context1: any = null;
@@ -76,7 +78,7 @@ export abstract class SubscriberCollection {
     return true;
   }
 
-  protected callSubscribers(newValue: any, oldValue?: any) {
+  protected callSubscribers(newValue: any, oldValue: any, flags: BindingFlags) {
     let context0 = this._context0;
     let callable0 = this._callable0;
     let context1 = this._context1;
@@ -116,23 +118,23 @@ export abstract class SubscriberCollection {
 
     if (context0) {
       if (callable0) {
-        callable0.call(context0, newValue, oldValue);
+        callable0.call(context0, newValue, oldValue, flags);
       } else {
-        context0(newValue, oldValue);
+        context0(newValue, oldValue, flags);
       }
     }
     if (context1) {
       if (callable1) {
-        callable1.call(context1, newValue, oldValue);
+        callable1.call(context1, newValue, oldValue, flags);
       } else {
-        context1(newValue, oldValue);
+        context1(newValue, oldValue, flags);
       }
     }
     if (context2) {
       if (callable2) {
-        callable2.call(context2, newValue, oldValue);
+        callable2.call(context2, newValue, oldValue, flags);
       } else {
-        context2(newValue, oldValue);
+        context2(newValue, oldValue, flags);
       }
     }
     if (length) {
@@ -140,9 +142,9 @@ export abstract class SubscriberCollection {
         let callable = callablesRest[i];
         let context = contextsRest[i];
         if (callable) {
-          callable.call(context, newValue, oldValue);
+          callable.call(context, newValue, oldValue, flags);
         } else {
-          context(newValue, oldValue);
+          context(newValue, oldValue, flags);
         }
         contextsRest[i] = null;
         callablesRest[i] = null;

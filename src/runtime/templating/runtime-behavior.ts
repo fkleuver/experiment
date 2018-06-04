@@ -6,6 +6,7 @@ import { SubscriberCollection } from "../binding/subscriber-collection";
 import { IAccessor, ISubscribable } from "../binding/observation";
 import { Observer } from "../binding/property-observation";
 import { IBindableInstruction, ObservableDefinitions } from "./instructions";
+import { BindingFlags, BindingOrigin, BindingDirection, BindingOperation } from "../binding/binding-flags";
 
 export interface IRuntimeBehavior {
   hasCreated: boolean;
@@ -120,12 +121,15 @@ function createGetterSetter(instance, name) {
 }
 
 class ChildrenObserver extends SubscriberCollection implements IAccessor, ISubscribable, ICallable {
+  private _callFlags: BindingFlags;
+
   private observer: IChildObserver = null;
   private children: IElementComponent[] = null;
   private queued = false;
 
   constructor(private taskQueue: ITaskQueue, private component: IElementComponent) {
     super();
+    this._callFlags = BindingOrigin.observer | BindingOperation.change | this._id;
   }
 
   getValue(): IElementComponent[] {
@@ -152,9 +156,9 @@ class ChildrenObserver extends SubscriberCollection implements IAccessor, ISubsc
     }
   }
 
-  call() {
+  call(flags?: BindingFlags) {
     this.queued = false;
-    this.callSubscribers(this.children);
+    this.callSubscribers(this.children, undefined, flags || this._callFlags);
   }
 
   subscribe(context: string, callable: ICallable) {

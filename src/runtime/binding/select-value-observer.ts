@@ -4,10 +4,15 @@ import { ITaskQueue } from '../task-queue';
 import { IEventSubscriber } from './event-manager';
 import { IObserverLocator } from './observer-locator';
 import { INode, DOM, IChildObserver } from '../dom';
+import { BindingFlags, BindingOrigin, BindingOperation, BindingDirection } from './binding-flags';
 
 const selectArrayContext = 'SelectValueObserver:array';
 
 export class SelectValueObserver extends SubscriberCollection {
+  private _setValueFlags: BindingFlags;
+  private _handleEventFlags: BindingFlags;
+  private _bindFlags: BindingFlags;
+  
   private value: any;
   private oldValue: any;
   private arrayObserver: any;
@@ -24,13 +29,18 @@ export class SelectValueObserver extends SubscriberCollection {
     this.node = node;
     this.handler = handler;
     this.observerLocator = observerLocator;
+
+    const baseFlags = BindingOrigin.observer | this._id;
+    this._setValueFlags = baseFlags | BindingOperation.change | BindingDirection.toView;
+    this._handleEventFlags = baseFlags | BindingOperation.change | BindingDirection.fromView;
+    this._bindFlags = baseFlags | BindingOperation.bind;
   }
 
   getValue() {
     return this.value;
   }
 
-  setValue(newValue: any) {
+  setValue(newValue: any, flags?: BindingFlags) {
     if (newValue !== null && newValue !== undefined && this.node.multiple && !Array.isArray(newValue)) {
       throw new Error('Only null or Array instances can be bound to a multi-select.');
     }
@@ -55,7 +65,7 @@ export class SelectValueObserver extends SubscriberCollection {
     this.oldValue = this.value;
     this.value = newValue;
     this.synchronizeOptions();
-    this.notify();
+    this.notify(flags || this._setValueFlags);
     // queue up an initial sync after the bindings have been evaluated.
     if (!this.initialSync) {
       this.initialSync = true;
@@ -91,7 +101,7 @@ export class SelectValueObserver extends SubscriberCollection {
     }
   }
 
-  synchronizeValue() {
+  synchronizeValue(flags: BindingFlags) {
     let options = this.node.options;
     let count = 0;
     let value = [];
@@ -142,19 +152,19 @@ export class SelectValueObserver extends SubscriberCollection {
     if (value !== this.value) {
       this.oldValue = this.value;
       this.value = value;
-      this.notify();
+      this.notify(flags);
     }
   }
 
-  notify() {
+  notify(flags: BindingFlags) {
     let oldValue = this.oldValue;
     let newValue = this.value;
 
-    this.callSubscribers(newValue, oldValue);
+    this.callSubscribers(newValue, oldValue, flags);
   }
 
   handleEvent() {
-    this.synchronizeValue();
+    this.synchronizeValue(this._handleEventFlags);
   }
 
   subscribe(context: string, callable: ICallable) {
@@ -170,10 +180,10 @@ export class SelectValueObserver extends SubscriberCollection {
     }
   }
 
-  bind() {
+  bind(flags?: BindingFlags) {
     this.childObserver = DOM.createChildObserver(this.node, () => {
       this.synchronizeOptions();
-      this.synchronizeValue();
+      this.synchronizeValue(flags || this._bindFlags);
     }, { childList: true, subtree: true, characterData: true });
   }
 

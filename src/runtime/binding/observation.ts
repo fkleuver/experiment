@@ -1,13 +1,14 @@
 import { ICallable, IDisposable, IIndexable } from '../interfaces';
 import { IScope } from './binding-context';
+import { BindingFlags } from './binding-flags';
 
 export interface IBindScope {
-  $bind(scope: IScope): void;
+  $bind(scope: IScope, flags?: BindingFlags): void;
   $unbind(): void;
 }
 export interface IAccessor<T = any> {
   getValue(): T;
-  setValue(newValue: T): void;
+  setValue(newValue: T, flags: BindingFlags): void;
 }
 
 export interface ISubscribable {
@@ -17,19 +18,19 @@ export interface ISubscribable {
 
 export interface IBindingTargetAccessor<TGetReturn = any, TSetValue = TGetReturn> {
   getValue(obj: IIndexable, propertyName: string): TGetReturn;
-  setValue(value: TSetValue, obj: IIndexable, propertyName: string): void;
+  setValue(value: TSetValue, obj: IIndexable, propertyName: string, flags: BindingFlags): void;
 }
 
 export interface IBindingTargetObserver<TGetReturn = any, TSetValue = TGetReturn>
   extends IBindingTargetAccessor<TGetReturn, TSetValue>, ISubscribable {
 
-  bind?(): void;
+  bind?(flags: BindingFlags): void;
   unbind?(): void;
 }
 
 export interface IBindingCollectionObserver extends ISubscribable, ICallable {
   getValue?(target: IIndexable, targetProperty: string): any;
-  setValue?(value: any, target: IIndexable, targetProperty: string): void;
+  setValue?(value: any, target: IIndexable, targetProperty: string, flags: BindingFlags): void;
 
   addChangeRecord(changeRecord: any): void;
   flushChangeRecords(): void;

@@ -5,9 +5,14 @@ import { IServiceLocator } from '../di';
 import { IDisposable } from '../interfaces';
 import { IScope } from './binding-context';
 import { INode } from '../dom';
-import { BindingFlags } from './binding-flags';
+import { BindingFlags, nextBindingId, BindingOrigin, BindingOperation, BindingDirection } from './binding-flags';
 
 export class Listener implements IBinding {
+  private _id = nextBindingId();
+  private _callSourceFlags: BindingFlags;
+  private _bindFlags: BindingFlags;
+  private _handleEventFlags: BindingFlags;
+
   private source: IScope;
   private $isBound = false;
   private handler: IDisposable;
@@ -20,13 +25,18 @@ export class Listener implements IBinding {
     private preventDefault: boolean,
     private eventManager: IEventManager,
     public locator: IServiceLocator
-  ) { }
+  ) {
+    const baseFlags = BindingOrigin.binding | this._id;
+    this._callSourceFlags = baseFlags | BindingOperation.call | BindingDirection.fromView;
+    this._bindFlags = baseFlags | BindingOperation.bind;
+    this._handleEventFlags = baseFlags | BindingOperation.event;
+  }
 
-  callSource(event: Event) {
+  callSource(event: Event, flags?: BindingFlags) {
     let overrideContext = this.source.overrideContext as any;
     overrideContext['$event'] = event;
 
-    let result = this.sourceExpression.evaluate(this.source, this.locator, BindingFlags.mustEvaluate);
+    let result = this.sourceExpression.evaluate(this.source, this.locator, (flags || this._callSourceFlags) | BindingFlags.mustEvaluate);
 
     delete overrideContext['$event'];
 
@@ -38,10 +48,10 @@ export class Listener implements IBinding {
   }
 
   handleEvent(event: Event) {
-    this.callSource(event);
+    this.callSource(event, this._handleEventFlags);
   }
 
-  $bind(source: IScope) {
+  $bind(source: IScope, flags?: BindingFlags) {
     if (this.$isBound) {
       if (this.source === source) {
         return;
@@ -54,7 +64,7 @@ export class Listener implements IBinding {
     this.source = source;
 
     if (this.sourceExpression.bind) {
-      this.sourceExpression.bind(this, source, BindingFlags.none);
+      this.sourceExpression.bind(this, source, flags || this._bindFlags);
     }
 
     this.handler = this.eventManager.addEventListener(
@@ -73,7 +83,7 @@ export class Listener implements IBinding {
     this.$isBound = false;
 
     if (this.sourceExpression.unbind) {
-      this.sourceExpression.unbind(this, this.source, BindingFlags.none);
+      this.sourceExpression.unbind(this, this.source);
     }
 
     this.source = null;
