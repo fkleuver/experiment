@@ -10,7 +10,7 @@ import { IScope, sourceContext } from '../../binding/binding-context';
 import { IRepeatStrategy } from './repeat-strategy';
 import { IBindingCollectionObserver } from '../../binding/observation';
 import { Binding } from '../../binding/binding';
-import { BindingMode } from '../../binding/binding-flags';
+import { BindingMode, BindingOrigin, BindingOperation, nextBindingId } from '../../binding/binding-flags';
 import { IViewOwner } from '../../templating/view';
 import { ITaskQueue } from '../../task-queue';
 import { BindingFlags } from '../../binding/binding-flags';
@@ -66,7 +66,9 @@ function getBinding(owner: IViewOwner, behavior: any, propertyName: string): Bin
 @templateController
 @inject(IViewOwner, IVisualFactory, IRenderSlot, IContainer, ITaskQueue, IRepeatStrategyRegistry)
 export class Repeat implements IRepeater {
-  private ignoreMutation = false;
+  private _id = nextBindingId();
+  private _itemsChangedFlags: BindingFlags;
+
   private sourceExpression: IExpression;
   private isOneTime: boolean;
   private strategy: IRepeatStrategy;
@@ -119,6 +121,8 @@ export class Repeat implements IRepeater {
     this.key = 'key';
     this.value = 'value';
     this.visualsRequireLifecycle = true; // TODO: the template compiler should figure this out
+
+    this._itemsChangedFlags = BindingOrigin.component | BindingOperation.change | this._id;
   }
 
   call(context: string, changes: any) {
@@ -129,7 +133,7 @@ export class Repeat implements IRepeater {
     this.sourceExpression = getBinding(this.owner, this, 'items').sourceExpression;
     this.isOneTime = isOneTime(this.sourceExpression);
     this.scope = scope;
-    this.itemsChanged();
+    this.itemsChanged(this._itemsChangedFlags);
   }
 
   unbound() {
@@ -147,7 +151,7 @@ export class Repeat implements IRepeater {
     }
   }
 
-  itemsChanged() {
+  itemsChanged(flags?: BindingFlags) {
     this.unsubscribeCollection();
 
     // still bound?
@@ -162,53 +166,47 @@ export class Repeat implements IRepeater {
       throw Reporter.error(19, this.sourceExpression);
     }
 
-    if (!this.isOneTime && !this.observeInnerCollection()) {
+    if (flags === this._itemsChangedFlags) {
+      return;
+    }
+    flags = flags || this._itemsChangedFlags;
+
+    if (!this.isOneTime && !this.observeInnerCollection(flags)) {
       this.observeCollection();
     }
 
-    this.ignoreMutation = true;
     this.strategy.instanceChanged(this, items);
-    this.taskQueue.queueMicroTask(() => this.ignoreMutation = false);
   }
 
-  private getInnerCollection() {
+  private getInnerCollection(flags: BindingFlags) {
     let expression = unwrapExpression(this.sourceExpression);
 
     if (!expression) {
       return null;
     }
 
-    return expression.evaluate(this.scope, this.container, BindingFlags.none);
+    return expression.evaluate(this.scope, this.container, flags);
   }
 
   handleCollectionMutated(collection, changes) {
-    if (!this.collectionObserver || this.ignoreMutation) {
+    if (!this.collectionObserver) {
       return;
     }
 
     this.strategy.instanceMutated(this, collection, changes);
   }
 
-  handleInnerCollectionMutated(collection, changes) {
+  handleInnerCollectionMutated(collection, changes, flags: BindingFlags) {
     if (!this.collectionObserver) {
       return;
     }
 
-    // guard against source expressions that have observable side-effects that could
-    // cause an infinite loop- eg a value converter that mutates the source array.
-    if (this.ignoreMutation) {
-      return;
-    }
-
-    this.ignoreMutation = true;
-    let newItems = this.sourceExpression.evaluate(this.scope, this.container, BindingFlags.none);
-
-    this.taskQueue.queueMicroTask(() => this.ignoreMutation = false);
+    let newItems = this.sourceExpression.evaluate(this.scope, this.container, flags);
 
     // call itemsChanged...
     if (newItems === this.items) {
       // call itemsChanged directly.
-      this.itemsChanged();
+      this.itemsChanged(flags);
     } else {
       // call itemsChanged indirectly by assigning the new collection value to
       // the items property, which will trigger the self-subscriber to call itemsChanged.
@@ -216,8 +214,8 @@ export class Repeat implements IRepeater {
     }
   }
 
-  private observeInnerCollection() {
-    let items = this.getInnerCollection();
+  private observeInnerCollection(flags: BindingFlags) {
+    let items = this.getInnerCollection(flags);
     let strategy = this.strategyRegistry.getStrategyForItems(items);
     
     if (!strategy) {

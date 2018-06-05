@@ -4,7 +4,7 @@ import { Observer } from '../binding/property-observation';
 import { ShadowDOMEmulation } from './shadow-dom';
 import { PLATFORM } from '../platform';
 import { IContainer, Registration, DI } from '../di';
-import { BindingMode } from '../binding/binding-flags';
+import { BindingMode, BindingFlags, BindingOrigin, BindingOperation } from '../binding/binding-flags';
 import { Constructable, ICallable, Immutable, Writable } from '../interfaces';
 import { IBindScope, IAccessor, ISubscribable } from '../binding/observation';
 import { IScope, BindingContext } from '../binding/binding-context';
@@ -67,6 +67,7 @@ export interface IBindingBehaviorType extends Constructable {
   register(container: IContainer);
 }
 
+const componentBindFlags = BindingOrigin.component | BindingOperation.bind;
 export const Component = {
   valueConverter<T extends Constructable>(nameOrSource: string | IValueConverterSource, ctor: T): T & IValueConverterType {
     const definition = createDefinition<IValueConverterSource>(nameOrSource);
@@ -120,7 +121,7 @@ export const Component = {
       }
     };
 
-    proto.$bind = function(this: IAttributeComponentImplementation, scope: IScope) {
+    proto.$bind = function(this: IAttributeComponentImplementation, scope: IScope, flags?: BindingFlags) {
       if (this.$isBound) {
         if (this.$scope === scope) {
           return;

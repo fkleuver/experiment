@@ -2,7 +2,7 @@ import { IBinding } from './binding';
 import { IServiceLocator } from '../di';
 import { IScope, BindingContext } from './binding-context';
 import { ISignaler } from './signaler';
-import { BindingFlags } from './binding-flags';
+import { BindingFlags, BindingMode } from './binding-flags';
 
 export type IsPrimary = AccessThis | AccessScope | ArrayLiteral | ObjectLiteral | PrimitiveLiteral | Template;
 export type IsUnary = IsPrimary | Unary;
@@ -23,23 +23,26 @@ export interface IExpression {
 }
 
 export class BindingBehavior implements IExpression {
-  constructor(public expression: IsBindingBehavior, public name: string, public args: IsAssign[]) { }
+  private isOneTime: boolean;
+  constructor(public expression: IsBindingBehavior, public name: string, public args: IsAssign[]) {
+    this.isOneTime = name === 'oneTime';
+  }
 
   evaluate(scope: IScope, locator: IServiceLocator, flags: BindingFlags) {
-    return this.expression.evaluate(scope, locator, flags);
+    return this.expression.evaluate(scope, locator, this.isOneTime ? (flags & ~BindingFlags.mode) | BindingMode.oneTime : flags);
   }
 
   assign(scope: IScope, value: any, locator: IServiceLocator, flags: BindingFlags) {
-    return (<any>this.expression).assign(scope, value, locator, flags);
+    return (<any>this.expression).assign(scope, value, locator, this.isOneTime ? (flags & ~BindingFlags.mode) | BindingMode.oneTime : flags);
   }
 
   connect(binding: IBinding, scope: IScope, flags: BindingFlags) {
-    this.expression.connect(binding, scope, flags);
+    this.expression.connect(binding, scope, this.isOneTime ? (flags & ~BindingFlags.mode) | BindingMode.oneTime : flags);
   }
 
   bind(binding: IBinding, scope: IScope, flags: BindingFlags) {
     if ((<any>this.expression).expression && (<any>this.expression).bind) {
-      (<any>this.expression).bind(binding, scope, flags);
+      (<any>this.expression).bind(binding, scope, this.isOneTime ? (flags & ~BindingFlags.mode) | BindingMode.oneTime : flags);
     }
 
     let behavior = binding.locator.get(this.name);
@@ -53,7 +56,7 @@ export class BindingBehavior implements IExpression {
     }
 
     (binding as any)[behaviorKey] = behavior;
-    (behavior as any).bind.apply(behavior, [binding, scope].concat(evalList(scope, this.args, binding.locator, flags)));
+    (behavior as any).bind.apply(behavior, [binding, scope].concat(evalList(scope, this.args, binding.locator, this.isOneTime ? (flags & ~BindingFlags.mode) | BindingMode.oneTime : flags)));
   }
 
   unbind(binding: IBinding, scope: IScope) {

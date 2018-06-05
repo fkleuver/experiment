@@ -4,6 +4,7 @@ import { IRepeatStrategy } from './repeat-strategy';
 import { IObserverLocator } from '../../binding/observer-locator';
 import { IRepeater } from './repeater';
 import { BindingContext } from '../../binding/binding-context';
+import { BindingFlags } from '../../binding/binding-flags';
 
 interface IArrayStorageOnRepeater {
   __array: any[];

@@ -4,6 +4,7 @@ import { IScope, BindingContext } from '../binding/binding-context';
 import { inject } from '../di';
 import { IVisualFactory, IVisual } from '../templating/visual';
 import { IAttributeComponent } from '../templating/component';
+import { BindingOrigin, BindingOperation } from '../binding/binding-flags';
 
 export interface With extends IAttributeComponent {}
 @customAttribute('with')
@@ -25,7 +26,7 @@ export class With {
       overrideContext: BindingContext.createOverride(newValue, this.$scope.overrideContext)
     };
 
-    this.child.$bind(childScope);
+    this.child.$bind(childScope, BindingOrigin.component | BindingOperation.change);
   }
 
   unbound() {
